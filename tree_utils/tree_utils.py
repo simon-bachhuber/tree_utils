@@ -1,11 +1,11 @@
 from functools import partial, reduce
-from typing import Generic, TypeVar, Union
+from typing import Generic, Sequence, TypeVar
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
-import tree as tree_lib
+from equinox import tree_at
 
 T = TypeVar("T")
 
@@ -30,11 +30,19 @@ def _flatten(x: jnp.ndarray, num_batch_dims: int) -> jnp.ndarray:
     return jnp.reshape(x, list(x.shape[:num_batch_dims]) + [-1])
 
 
+def tree_close(a: PyTree, b: PyTree, rtol=1e-05, atol=1e-08) -> bool:
+    return all(
+        jtu.tree_leaves(
+            jax.tree_map(lambda a, b: jnp.allclose(a, b, rtol=rtol, atol=atol), a, b)
+        )
+    )
+
+
 def batch_concat(tree: PyTree, num_batch_dims: int = 1) -> jnp.ndarray:
     """Flatten and concatenate nested array structure, keeping batch dims."""
     flatten_fn = lambda x: _flatten(x, num_batch_dims)
-    flat_leaves = tree_lib.map_structure(flatten_fn, tree)
-    return jnp.concatenate(tree_lib.flatten(flat_leaves), axis=-1)
+    flat_leaves = jax.tree_map(flatten_fn, tree)
+    return jnp.concatenate(jax.tree_util.tree_leaves(flat_leaves), axis=-1)
 
 
 def tree_zeros_like(tree: PyTree, dtype=None) -> PyTree[jnp.ndarray]:
@@ -46,7 +54,6 @@ def tree_ones_like(tree: PyTree, dtype=None) -> PyTree[jnp.ndarray]:
 
 
 def tree_bools_like(tree, where=None, invert=False):
-    from equinox import tree_at
 
     t, f = (True, False) if not invert else (False, True)
     default_tree = jax.tree_util.tree_map(lambda _: t, tree)
@@ -64,9 +71,33 @@ def tree_insert_IMPURE(tree, subtree, batch_idxs: tuple[int, ...]):
     jax.tree_util.tree_map(insert, tree, subtree)
 
 
-def tree_concat(
-    trees: Union[list, tuple], along_existing_first_axis=False, backend="numpy"
+def tree_batch(
+    trees: Sequence, along_existing_first_axis: bool = False, backend: str = "numpy"
 ):
+    jp = {"jax": jnp, "numpy": np}[backend]
+
+    # otherwise scalar-arrays will lead to indexing error
+    trees = jax.tree_map(lambda arr: jp.atleast_1d(arr), trees)
+
+    if not along_existing_first_axis:
+        trees = jax.tree_util.tree_map(lambda arr: arr[None], trees)
+
+    if len(trees) == 0:
+        return trees
+    if len(trees) == 1:
+        return trees[0]
+
+    return jax.tree_util.tree_map(lambda *arrs: jp.concatenate(arrs, axis=0), *trees)
+
+
+def tree_concat(
+    trees: Sequence,
+    along_existing_first_axis=False,
+    backend="numpy",
+    suppress_warning=False,
+):
+    if not suppress_warning:
+        print("Warning: Deprecated (because too slow). Use `tree_batch` instead.")
     if backend == "jax":
         concat = jnp.concatenate
         atleast_1d = jnp.atleast_1d
@@ -145,3 +176,20 @@ def tree_indices(tree, indices: jnp.ndarray, axis=0):
         )(indices)
 
     return jtu.tree_map(extract_indices_of_axis, tree)
+
+
+# Delete then rnno/tree.py
+def tree_split(tree, num_splits: int, axis: int = 0, lazy=True):
+    """tree can *not* contain a list. It will silently break!!!"""  # TODO
+    tree = jtu.tree_map(lambda arr: jnp.split(arr, num_splits, axis), tree)
+
+    def get_loop_element(tree, i):
+        return jtu.tree_map(
+            lambda arr: arr[i], tree, is_leaf=lambda leaf: isinstance(leaf, list)
+        )
+
+    if lazy:
+        for i in range(num_splits):
+            yield get_loop_element(tree, i)
+    else:
+        return [get_loop_element(tree, i) for i in range(num_splits)]
