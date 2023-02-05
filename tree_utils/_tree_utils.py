@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
-from equinox import tree_at
 
 T = TypeVar("T")
 
@@ -54,6 +53,7 @@ def tree_ones_like(tree: PyTree, dtype=None) -> PyTree[jnp.ndarray]:
 
 
 def tree_bools_like(tree, where=None, invert=False):
+    from equinox import tree_at
 
     t, f = (True, False) if not invert else (False, True)
     default_tree = jax.tree_util.tree_map(lambda _: t, tree)
