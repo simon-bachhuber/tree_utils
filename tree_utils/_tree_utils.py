@@ -97,7 +97,10 @@ def tree_concat(
     suppress_warning=False,
 ):
     if not suppress_warning:
-        print("Warning: Deprecated (because too slow). Use `tree_batch` instead.")
+        print(
+            "Warning: Deprecated `tree_concat`\
+                  (because it is too slow). Use `tree_batch` instead."
+        )
     if backend == "jax":
         concat = jnp.concatenate
         atleast_1d = jnp.atleast_1d
