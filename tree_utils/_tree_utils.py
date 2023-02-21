@@ -5,6 +5,8 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
+import tree as tree_lib
+from jax.flatten_util import ravel_pytree
 
 T = TypeVar("T")
 
@@ -35,6 +37,18 @@ def tree_close(a: PyTree, b: PyTree, rtol=1e-05, atol=1e-08) -> bool:
             jax.tree_map(lambda a, b: jnp.allclose(a, b, rtol=rtol, atol=atol), a, b)
         )
     )
+
+
+def batch_concat_acme(
+    tree: PyTree,
+    num_batch_dims: int = 1,
+) -> jnp.ndarray:
+    """Flatten and concatenate nested array structure, keeping batch dims.
+    IGNORES the ordered of elements in an `OrderedDict`, see EngineeringLog @ 18.02.23
+    """
+    flatten_fn = lambda x: _flatten(x, num_batch_dims)
+    flat_leaves = tree_lib.map_structure(flatten_fn, tree)
+    return jnp.concatenate(tree_lib.flatten(flat_leaves), axis=-1)
 
 
 def batch_concat(tree: PyTree, num_batch_dims: int = 1) -> jnp.ndarray:
@@ -142,6 +156,13 @@ def tree_concat(
 
 def tree_shape(tree, axis: int = 0):
     return jtu.tree_flatten(tree)[0][0].shape[axis]
+
+
+def tree_map_flat(tree, f, *args):
+    """Maps `f(arr, *args)` across a flattened and concatenated version of `tree`."""
+    arr, unflatten = ravel_pytree(tree)
+    arr = f(arr, *args)
+    return unflatten(arr)
 
 
 @partial(jax.jit, static_argnums=(2, 3, 4))
