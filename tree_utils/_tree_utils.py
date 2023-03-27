@@ -90,11 +90,11 @@ def tree_batch(
 ):
     jp = {"jax": jnp, "numpy": np}[backend]
 
-    # otherwise scalar-arrays will lead to indexing error
-    trees = jax.tree_map(lambda arr: jp.atleast_1d(arr), trees)
-
     if not along_existing_first_axis:
         trees = jax.tree_util.tree_map(lambda arr: arr[None], trees)
+    else:
+        # otherwise scalar-arrays will lead to indexing error
+        trees = jax.tree_map(lambda arr: jp.atleast_1d(arr), trees)
 
     if len(trees) == 0:
         return trees
