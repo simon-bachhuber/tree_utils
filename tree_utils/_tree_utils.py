@@ -21,11 +21,11 @@ class PyTree(Generic[T]):
         pass
 
 
-def add_batch_dim(values: PyTree) -> PyTree[jnp.ndarray]:
+def add_batch_dim(values: PyTree) -> PyTree[jax.Array]:
     return jax.tree_map(lambda x: jnp.expand_dims(x, axis=0), values)
 
 
-def _flatten(x: jnp.ndarray, num_batch_dims: int) -> jnp.ndarray:
+def _flatten(x: jax.Array, num_batch_dims: int) -> jax.Array:
     if x.ndim < num_batch_dims:
         return x
     return jnp.reshape(x, list(x.shape[:num_batch_dims]) + [-1])
@@ -42,7 +42,7 @@ def tree_close(a: PyTree, b: PyTree, rtol=1e-05, atol=1e-08) -> bool:
 def batch_concat_acme(
     tree: PyTree,
     num_batch_dims: int = 1,
-) -> jnp.ndarray:
+) -> jax.Array:
     """Flatten and concatenate nested array structure, keeping batch dims.
     IGNORES the ordered of elements in an `OrderedDict`, see EngineeringLog @ 18.02.23
     """
@@ -51,18 +51,18 @@ def batch_concat_acme(
     return jnp.concatenate(tree_lib.flatten(flat_leaves), axis=-1)
 
 
-def batch_concat(tree: PyTree, num_batch_dims: int = 1) -> jnp.ndarray:
+def batch_concat(tree: PyTree, num_batch_dims: int = 1) -> jax.Array:
     """Flatten and concatenate nested array structure, keeping batch dims."""
     flatten_fn = lambda x: _flatten(x, num_batch_dims)
     flat_leaves = jax.tree_map(flatten_fn, tree)
     return jnp.concatenate(jax.tree_util.tree_leaves(flat_leaves), axis=-1)
 
 
-def tree_zeros_like(tree: PyTree, dtype=None) -> PyTree[jnp.ndarray]:
+def tree_zeros_like(tree: PyTree, dtype=None) -> PyTree[jax.Array]:
     return jax.tree_map(lambda x: jnp.zeros(x.shape, dtype or x.dtype), tree)
 
 
-def tree_ones_like(tree: PyTree, dtype=None) -> PyTree[jnp.ndarray]:
+def tree_ones_like(tree: PyTree, dtype=None) -> PyTree[jax.Array]:
     return jax.tree_map(lambda x: jnp.ones(x.shape, dtype or x.dtype), tree)
 
 
@@ -91,6 +91,10 @@ def tree_batch(
     jp = {"jax": jnp, "numpy": np}[backend]
 
     if not along_existing_first_axis:
+        # convert all IntEnums -> jax.Array
+        # as IntEnums are not subscriptable
+        trees = jax.tree_util.tree_map(jp.asarray, trees)
+
         trees = jax.tree_util.tree_map(lambda arr: arr[None], trees)
     else:
         # otherwise scalar-arrays will lead to indexing error
@@ -182,12 +186,12 @@ def tree_slice(tree, start, slice_size=1, axis=0, keepdim=False):
 
 
 @partial(jax.jit, static_argnums=(2,))
-def tree_indices(tree, indices: jnp.ndarray, axis=0):
+def tree_indices(tree, indices: jax.Array, axis=0):
     """Extract an array of indices in an axis for every tree-element
 
     Args:
         tree (_type_): Tree of Arrays
-        indices (jnp.ndarray): Array of Integers
+        indices (jax.Array): Array of Integers
         axis (int, optional): _description_. Defaults to 0.
     """
 

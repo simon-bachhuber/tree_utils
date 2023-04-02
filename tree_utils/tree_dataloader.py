@@ -9,7 +9,7 @@ from tree_utils import PyTree, tree_indices, tree_shape
 
 
 class MiniBatchState(NamedTuple):
-    indices: jnp.ndarray
+    indices: jax.Array
     i: int
     bs: int
     n_minibatches: int
@@ -102,7 +102,7 @@ def tree_dataloader(
 @ft.partial(jax.jit, static_argnums=(1, 2, 3))
 def _gen_minibatch_indices(
     key, batch_size: int, n_minibatches: int, minibatch_size: int
-) -> jnp.ndarray:
+) -> jax.Array:
     consume1, consume2 = jrand.split(key)
     permutation = jax.random.permutation(consume1, jnp.arange(batch_size))
     permutation_bootstrap = jax.random.permutation(consume2, jnp.arange(batch_size))
@@ -123,7 +123,7 @@ def _gen_minibatch_indices(
 @ft.partial(jax.jit, static_argnums=(1, 2, 3))
 def _gen_minibatch_masks(
     key, batch_size: int, n_minibatches: int, minibatch_size: int
-) -> jnp.ndarray:
+) -> jax.Array:
 
     idxss = _gen_minibatch_indices(key, batch_size, n_minibatches, minibatch_size)
 
