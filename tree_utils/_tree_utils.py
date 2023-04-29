@@ -158,8 +158,12 @@ def tree_concat(
     return stack
 
 
-def tree_shape(tree, axis: int = 0):
+def tree_shape(tree, axis: int = 0) -> int:
     return jtu.tree_flatten(tree)[0][0].shape[axis]
+
+
+def tree_ndim(tree) -> int:
+    return jtu.tree_flatten(tree)[0][0].ndim
 
 
 def tree_map_flat(tree, f, *args):
@@ -172,7 +176,6 @@ def tree_map_flat(tree, f, *args):
 @partial(jax.jit, static_argnums=(2, 3, 4))
 def tree_slice(tree, start, slice_size=1, axis=0, keepdim=False):
     def slicing_fun(arr):
-
         if slice_size > 1:
             return jax.lax.dynamic_slice_in_dim(
                 arr, start_index=start, slice_size=slice_size, axis=axis
