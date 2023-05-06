@@ -224,3 +224,16 @@ def tree_split(tree, num_splits: int, axis: int = 0, lazy=True):
             yield get_loop_element(tree, i)
     else:
         return [get_loop_element(tree, i) for i in range(num_splits)]
+
+
+def tree_standardize(tree, axes=None, eps=1e-8):
+    ndim = tree_ndim(tree)
+    assert ndim > 1, "Expected last axis to be features, thus must be at least 2d"
+
+    def standardizer(arr):
+        nonlocal axes
+        if axes is None:
+            axes = tuple(range(ndim - 1))
+        return (arr - jnp.mean(arr, axis=axes)) / (jnp.std(arr, axis=axes) + eps)
+
+    return jax.tree_map(standardizer, tree)
