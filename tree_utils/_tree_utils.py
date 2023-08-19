@@ -237,3 +237,23 @@ def tree_standardize(tree, axes=None, eps=1e-8):
         return (arr - jnp.mean(arr, axis=axes)) / (jnp.std(arr, axis=axes) + eps)
 
     return jax.tree_map(standardizer, tree)
+
+
+def to_3d_if_2d(tree, strict: bool = False):
+    ndim = tree_ndim(tree)
+    assert ndim == 2 or ndim == 3
+    if strict:
+        assert ndim == 2
+    if ndim == 2:
+        return add_batch_dim(tree)
+    return tree
+
+
+def to_2d_if_3d(tree, idx: int = 0, strict: bool = False):
+    ndim = tree_ndim(tree)
+    assert ndim == 2 or ndim == 3
+    if strict:
+        assert ndim == 3
+    if ndim == 3:
+        return tree_slice(tree, idx)
+    return tree
