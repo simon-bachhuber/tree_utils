@@ -1,12 +1,13 @@
-from functools import partial, reduce
+from functools import partial
+from functools import reduce
 from typing import Generic, Sequence, TypeVar
 
 import jax
+from jax.flatten_util import ravel_pytree
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 import tree as tree_lib
-from jax.flatten_util import ravel_pytree
 
 T = TypeVar("T")
 
@@ -85,9 +86,26 @@ def tree_insert_IMPURE(tree, subtree, batch_idxs: tuple[int, ...]):
     jax.tree_util.tree_map(insert, tree, subtree)
 
 
+def is_jax_or_numpy_pytree(tree: PyTree) -> str:
+    flat_leaves = lambda obj: jax.tree_flatten(
+        jax.tree_map(lambda arr: isinstance(arr, obj), tree)
+    )[0]
+    is_numpy = flat_leaves(np.ndarray)
+    if all(is_numpy):
+        return "numpy"
+    is_jax = flat_leaves(jax.Array)
+    if all(is_jax):
+        return "jax"
+    raise Exception("Not all leaves are either jax.Arrays or numpy.ndarrays")
+
+
 def tree_batch(
-    trees: Sequence, along_existing_first_axis: bool = False, backend: str = "numpy"
+    trees: Sequence,
+    along_existing_first_axis: bool = False,
+    backend: str | None = "numpy",
 ):
+    if backend is None:
+        backend = is_jax_or_numpy_pytree(trees)
     jp = {"jax": jnp, "numpy": np}[backend]
 
     if not along_existing_first_axis:
