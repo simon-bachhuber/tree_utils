@@ -87,7 +87,7 @@ def tree_insert_IMPURE(tree, subtree, batch_idxs: tuple[int, ...]):
 
 
 def is_jax_or_numpy_pytree(tree: PyTree) -> str:
-    flat_leaves = lambda obj: jax.tree_flatten(
+    flat_leaves = lambda obj: jtu.tree_flatten(
         jax.tree_map(lambda arr: isinstance(arr, obj), tree)
     )[0]
     is_numpy = flat_leaves(np.ndarray)
