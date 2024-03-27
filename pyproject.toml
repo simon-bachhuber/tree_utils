@@ -3,7 +3,7 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tree_utils"
+name = "imt-tree-utils"
 version = "0.2.5"
 authors = [
   { name="Simon Bachhuber", email="simon.bachhuber@fau.de" },
