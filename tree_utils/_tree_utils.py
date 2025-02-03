@@ -23,7 +23,7 @@ class PyTree(Generic[T]):
 
 
 def add_batch_dim(values: PyTree) -> PyTree[jax.Array]:
-    return jax.tree_map(lambda x: jnp.expand_dims(x, axis=0), values)
+    return jax.tree.map(lambda x: jnp.expand_dims(x, axis=0), values)
 
 
 def _flatten(x: jax.Array, num_batch_dims: int) -> jax.Array:
@@ -35,7 +35,7 @@ def _flatten(x: jax.Array, num_batch_dims: int) -> jax.Array:
 def tree_close(a: PyTree, b: PyTree, rtol=1e-05, atol=1e-08) -> bool:
     return all(
         jtu.tree_leaves(
-            jax.tree_map(lambda a, b: jnp.allclose(a, b, rtol=rtol, atol=atol), a, b)
+            jax.tree.map(lambda a, b: jnp.allclose(a, b, rtol=rtol, atol=atol), a, b)
         )
     )
 
@@ -55,16 +55,16 @@ def batch_concat_acme(
 def batch_concat(tree: PyTree, num_batch_dims: int = 1) -> jax.Array:
     """Flatten and concatenate nested array structure, keeping batch dims."""
     flatten_fn = lambda x: _flatten(x, num_batch_dims)
-    flat_leaves = jax.tree_map(flatten_fn, tree)
+    flat_leaves = jax.tree.map(flatten_fn, tree)
     return jnp.concatenate(jax.tree_util.tree_leaves(flat_leaves), axis=-1)
 
 
 def tree_zeros_like(tree: PyTree, dtype=None) -> PyTree[jax.Array]:
-    return jax.tree_map(lambda x: jnp.zeros(x.shape, dtype or x.dtype), tree)
+    return jax.tree.map(lambda x: jnp.zeros(x.shape, dtype or x.dtype), tree)
 
 
 def tree_ones_like(tree: PyTree, dtype=None) -> PyTree[jax.Array]:
-    return jax.tree_map(lambda x: jnp.ones(x.shape, dtype or x.dtype), tree)
+    return jax.tree.map(lambda x: jnp.ones(x.shape, dtype or x.dtype), tree)
 
 
 def tree_bools_like(tree, where=None, invert=False):
@@ -88,7 +88,7 @@ def tree_insert_IMPURE(tree, subtree, batch_idxs: tuple[int, ...]):
 
 def is_jax_or_numpy_pytree(tree: PyTree) -> str:
     flat_leaves = lambda obj: jtu.tree_flatten(
-        jax.tree_map(lambda arr: isinstance(arr, obj), tree)
+        jax.tree.map(lambda arr: isinstance(arr, obj), tree)
     )[0]
     is_numpy = flat_leaves(np.ndarray)
     if all(is_numpy):
@@ -116,7 +116,7 @@ def tree_batch(
         trees = jax.tree_util.tree_map(lambda arr: arr[None], trees)
     else:
         # otherwise scalar-arrays will lead to indexing error
-        trees = jax.tree_map(lambda arr: jp.atleast_1d(arr), trees)
+        trees = jax.tree.map(lambda arr: jp.atleast_1d(arr), trees)
 
     if len(trees) == 0:
         return trees
@@ -145,7 +145,7 @@ def tree_concat(
         atleast_1d = np.atleast_1d
 
     # otherwise scalar-arrays will lead to indexing error
-    trees = jax.tree_map(lambda arr: atleast_1d(arr), trees)
+    trees = jax.tree.map(lambda arr: atleast_1d(arr), trees)
 
     if len(trees) == 0:
         return trees
@@ -163,11 +163,11 @@ def tree_concat(
             slice(None),
         )
 
-    initial = jax.tree_map(
+    initial = jax.tree.map(
         lambda a1, a2: concat((a1[sl], a2[sl]), axis=0), trees[0], trees[1]
     )
     stack = reduce(
-        lambda tree1, tree2: jax.tree_map(
+        lambda tree1, tree2: jax.tree.map(
             lambda a1, a2: concat((a1, a2[sl]), axis=0), tree1, tree2
         ),
         trees[2:],
@@ -254,7 +254,7 @@ def tree_standardize(tree, axes=None, eps=1e-8):
             axes = tuple(range(ndim - 1))
         return (arr - jnp.mean(arr, axis=axes)) / (jnp.std(arr, axis=axes) + eps)
 
-    return jax.tree_map(standardizer, tree)
+    return jax.tree.map(standardizer, tree)
 
 
 def to_3d_if_2d(tree, strict: bool = False):
