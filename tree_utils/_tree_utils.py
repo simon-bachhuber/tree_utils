@@ -71,7 +71,7 @@ def tree_bools_like(tree, where=None, invert=False):
     from equinox import tree_at
 
     t, f = (True, False) if not invert else (False, True)
-    default_tree = jax.tree_util.tree_map(lambda _: t, tree)
+    default_tree = jax.tree.map(lambda _: t, tree)
     if where:
         return tree_at(where, default_tree, f)
     else:
@@ -83,7 +83,7 @@ def tree_insert_IMPURE(tree, subtree, batch_idxs: tuple[int, ...]):
         a1[batch_idxs] = a2
         return a1
 
-    jax.tree_util.tree_map(insert, tree, subtree)
+    jax.tree.map(insert, tree, subtree)
 
 
 def is_jax_or_numpy_pytree(tree: PyTree) -> str:
@@ -111,9 +111,9 @@ def tree_batch(
     if not along_existing_first_axis:
         # convert all IntEnums -> jax.Array
         # as IntEnums are not subscriptable
-        trees = jax.tree_util.tree_map(jp.asarray, trees)
+        trees = jax.tree.map(jp.asarray, trees)
 
-        trees = jax.tree_util.tree_map(lambda arr: arr[None], trees)
+        trees = jax.tree.map(lambda arr: arr[None], trees)
     else:
         # otherwise scalar-arrays will lead to indexing error
         trees = jax.tree.map(lambda arr: jp.atleast_1d(arr), trees)
@@ -123,7 +123,7 @@ def tree_batch(
     if len(trees) == 1:
         return trees[0]
 
-    return jax.tree_util.tree_map(lambda *arrs: jp.concatenate(arrs, axis=0), *trees)
+    return jax.tree.map(lambda *arrs: jp.concatenate(arrs, axis=0), *trees)
 
 
 def tree_concat(
@@ -153,7 +153,7 @@ def tree_concat(
         if along_existing_first_axis:
             return trees[0]
         else:
-            return jax.tree_util.tree_map(lambda arr: arr[None], trees[0])
+            return jax.tree.map(lambda arr: arr[None], trees[0])
 
     if along_existing_first_axis:
         sl = (slice(None),)
@@ -203,7 +203,7 @@ def tree_slice(tree, start, slice_size=1, axis=0, keepdim=False):
                 arr, index=start, axis=axis, keepdims=keepdim
             )
 
-    return jax.tree_util.tree_map(slicing_fun, tree)
+    return jax.tree.map(slicing_fun, tree)
 
 
 @partial(jax.jit, static_argnums=(2,))
